@@ -9,7 +9,7 @@ AZ_DSCommon/
 ├── app/            # Java code and Play templates
 │   ├── code/       # Core library classes (Docflow, actions, API)
 │   ├── controllers # HTTP API endpoints
-│   ├── docflow/    # YAML configuration and localization
+│   ├── docflow/    # JSON v2 configuration and localization
 │   ├── models/     # Generated document model classes
 │   └── views/      # Play views
 ├── conf/           # Play configuration (routes, dependencies, messages)
@@ -44,7 +44,7 @@ This document summarizes the source code structure and key components of the `AZ
 
 ## Overview
 
-The project is a Play Framework module that implements a document flow and rights management library. It provides models, controllers, and utilities for creating, updating, and managing document-based workflows. The code is primarily written in Java with supporting configuration in YAML and Play Framework files.
+The project is a Play Framework module that implements a document flow and rights management library. It provides models, controllers, and utilities for creating, updating, and managing document-based workflows. The code is primarily written in Java with supporting configuration in JSON (v2) and Play Framework files.
 
 ## Repository Structure
 
@@ -103,7 +103,7 @@ public class DocflowFile extends DocumentSimple {
 
 ### Configuration Loading
 
-Compilation steps load YAML definitions and link them to code. For instance, `Compiler030LoadFieldTypes` reads field type definitions from module directories:
+Compilation steps load JSON (v2) definitions and link them to code. For instance, `Compiler030LoadFieldTypes` reads field type definitions from module directories:
 
 ```java
 public class Compiler030LoadFieldTypes {
@@ -114,15 +114,36 @@ public class Compiler030LoadFieldTypes {
             final VirtualFile file = docflowConfig.currentModule.root.child(DocflowConfig.PATH_FIELD_TYPES);
             if (!file.exists())
                 continue;
-            // parsing YAML and merging field types
+            // parsing JSON and merging field types
         }
     }
 }
 ```
 
+### JSON Configuration Example
+
+```yaml
+docType:
+  name: Sample
+  fields:
+    - id: text
+      type: string
+```
+
+```json
+{
+  "docType": {
+    "name": "Sample",
+    "fields": [
+      {"id": "text", "type": "string"}
+    ]
+  }
+}
+```
+
 ## Conclusion
 
-`AZ_DSCommon` provides a comprehensive framework for document management in Play applications. It includes a dynamic compiler for YAML-defined documents, generated models with state machines, and HTTP endpoints for file and document operations.
+`AZ_DSCommon` provides a comprehensive framework for document management in Play applications. It includes a dynamic compiler for JSON-defined documents, generated models with state machines, and HTTP endpoints for file and document operations.
 # Модель документов и операции DSCommon
 
 Этот файл содержит обзор классов модели документов из Java-репозитория **AZ_DSCommon** и описывает основные операции, реализованные в пакете `code.docflow`.
@@ -214,7 +235,7 @@ HTTP‑контроллеры из пакета `controllers` предостав
 AngularJS‑клиент использует эти данные для генерации форм создания и
 редактирования. Для действий можно определить отдельные наборы групп полей,
 тем самым меняя видимость элементов интерфейса.
-Правила расположения полей описываются в YAML-файлах модуля `docflow` в
+Правила расположения полей описываются в JSON-файлах (v2) модуля `docflow` в
 разделах `forms` и `groups`. Каждому полю можно задать условие отображения,
 например `visible: state == 'DRAFT'`, что позволяет скрывать элементы в разных
 состояниях документа.
@@ -227,7 +248,7 @@ AngularJS‑клиент использует эти данные для ген�
 может изменять документ только на начальном этапе. Условные выражения позволяют
 учитывать значения полей, что обеспечивает тонкую настройку доступа.
 Права представляют собой битовые маски (`read`, `update`, `delete` и др.),
-которые сравниваются с ролями пользователя. В YAML можно указать условие вида
+которые сравниваются с ролями пользователя. В JSON можно указать условие вида
 `update: role == 'EDITOR' && state == 'DRAFT'`, ограничивая действие только для
 определённой роли и стадии документа.
 
