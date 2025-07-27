@@ -1,0 +1,7 @@
+{
+  "name": "DocB",
+  "fields": [
+    {"id": "text", "type": "string"}
+  ],
+  "states": ["NEW"]
+}
