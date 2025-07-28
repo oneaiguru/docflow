@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 
 @dataclass
@@ -65,12 +65,14 @@ class DocumentVersioned(DocumentPersistent):
 
 @dataclass
 class DocumentHistoryEntry:
-    """Snapshot of a document revision."""
+    """Snapshot of a document revision with change metadata."""
 
     rev: int
     timestamp: datetime
     data: Dict[str, Any]
     action: str
+    params: Dict[str, Any] = field(default_factory=dict)
+    changes: Dict[str, Tuple[Any, Any]] = field(default_factory=dict)
 
 
 @dataclass
