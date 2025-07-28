@@ -4,7 +4,7 @@ from .document import Document, DocumentPersistent, DocumentSimple, DocumentVers
 from .doctypes import DocType, Action, DocTypesRegistry
 from .docflow import Docflow
 from .user import User
-from .storage import InMemoryStorage
+from .storage import InMemoryStorage, Transaction
 
 __all__ = [
     "Document",
@@ -17,5 +17,6 @@ __all__ = [
     "DocTypesRegistry",
     "Docflow",
     "InMemoryStorage",
+    "Transaction",
     "User",
 ]

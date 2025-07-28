@@ -60,3 +60,46 @@ def test_rights_enforced_delete():
     assert a.deleted is True
     hist = flow.storage.history(doc_a.name, a.id)
     assert hist[-1].action == 'DELETE'
+
+
+def test_action_chain_success():
+    registry, doc_a, doc_b, _ = load_types()
+    flow = Docflow()
+    admin = User('alice', ['admin'])
+    a = flow.create(doc_a, {'text': 'a'}, admin)
+    b = flow.create(doc_b, {'text': 'b'}, admin)
+    flow.action(a, 'TRIGGER_MARK', admin, {
+        'call': {'doc_type': 'DocB', 'doc_id': b.id, 'action': 'MARK'}
+    })
+    stored_b = flow.storage.get(doc_b.name, b.id)
+    assert stored_b._state_name() == 'MARKED'
+    hist = flow.storage.history(doc_b.name, b.id)
+    assert hist[-1].action == 'MARK'
+
+
+def test_action_chain_rollback_on_repeat():
+    registry, doc_a, doc_b, _ = load_types()
+    flow = Docflow()
+    admin = User('alice', ['admin'])
+    a = flow.create(doc_a, {'text': 'a'}, admin)
+    b = flow.create(doc_b, {'text': 'b'}, admin)
+    with pytest.raises(RuntimeError):
+        flow.action(a, 'TRIGGER_MARK', admin, {
+            'call': {
+                'doc_type': 'DocB',
+                'doc_id': b.id,
+                'action': 'MARK',
+                'params': {
+                    'call': {
+                        'doc_type': 'DocA',
+                        'doc_id': a.id,
+                        'action': 'TRIGGER_MARK'
+                    }
+                }
+            }
+        })
+    stored_a = flow.storage.get(doc_a.name, a.id)
+    stored_b = flow.storage.get(doc_b.name, b.id)
+    assert stored_a._state_name() == 'NEW'
+    assert stored_b._state_name() == 'NEW'
+    assert len(flow.storage.history(doc_b.name, b.id)) == 1

@@ -3,5 +3,11 @@
   "fields": [
     {"id": "text", "type": "string"}
   ],
-  "states": ["NEW"]
+  "actions": [
+    {"name": "MARK", "service": false}
+  ],
+  "states": ["NEW", "MARKED"],
+  "rights": {
+    "mark": {"admin": true}
+  }
 }

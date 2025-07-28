@@ -1,9 +1,9 @@
 """High level document flow API inspired by AZ_DSCommon."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Set, Tuple
 from .document import DocumentPersistent, DocumentVersioned
 from .doctypes import DocType
-from .storage import InMemoryStorage
+from .storage import InMemoryStorage, Transaction
 from .user import User
 
 
@@ -63,15 +63,36 @@ class Docflow:
         self.storage.add_history(doc._docType().name, doc, action="DELETE" if delete else "RECOVER")
         return doc
 
-    def action(self, doc: DocumentPersistent, action_name: str, user: User, params: Optional[Dict[str, Any]] = None):
-        """Execute a custom action on a document.
+    def action(
+        self,
+        doc: DocumentPersistent,
+        action_name: str,
+        user: User,
+        params: Optional[Dict[str, Any]] = None,
+        _chain: Optional[Set[Tuple[str, int, str]]] = None,
+    ):
+        """Execute a custom action possibly spanning multiple documents.
 
-        In a full implementation this would trigger state transitions and
-        permission checks defined by the DocType. Here we simply return a
-        description of what would have been executed.
+        Actions may trigger other actions on related documents by passing a
+        ``call`` dictionary inside ``params``. All actions invoked as part of the
+        same request are executed atomically using a basic in-memory transaction.
+        Repeated execution of the same action on the same document within one
+        chain raises ``RuntimeError``.
         """
+
         params = params or {}
+        if _chain is None:
+            _chain = set()
+            with Transaction(self.storage):
+                return self.action(doc, action_name, user, params, _chain)
+
+        key = (doc._docType().name, doc.id, action_name)
+        if key in _chain:
+            raise RuntimeError("Action already executed in this chain")
+        _chain.add(key)
+
         self._check_rights(doc._docType(), action_name, user)
+
         if action_name == "LINK" and isinstance(doc, DocumentVersioned):
             target_type = params.get("doc_type")
             target_id = params.get("doc_id")
@@ -82,7 +103,20 @@ class Docflow:
                     doc._state = "LINKED"
                 self.storage.update(doc._docType().name, doc)
                 self.storage.add_history(doc._docType().name, doc, action="LINK")
-                return {"linked": f"{target_type}:{target_id}"}
+        elif action_name == "MARK" and isinstance(doc, DocumentVersioned):
+            doc.touch()
+            if "MARKED" in doc._docType().states:
+                doc._state = "MARKED"
+            self.storage.update(doc._docType().name, doc)
+            self.storage.add_history(doc._docType().name, doc, action="MARK")
+
+        if "call" in params:
+            info = params["call"]
+            target = self.storage.get(info["doc_type"], info["doc_id"])
+            if not target:
+                raise ValueError("Target document not found")
+            self.action(target, info["action"], user, info.get("params"), _chain)
+
         return {
             "doc": doc._fullId(),
             "action": action_name,
