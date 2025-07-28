@@ -80,4 +80,3 @@ class DocumentFile(DocumentSimple):
     filename: str = ""
     data: bytes = b""
     text: str = ""
-
