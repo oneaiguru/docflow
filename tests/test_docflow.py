@@ -22,6 +22,8 @@ def test_create_and_history():
     assert len(hist) == 1
     assert hist[0].action == 'CREATE'
     assert hist[0].rev == 0
+    assert hist[0].params == {'text': 'hello'}
+    assert hist[0].changes['text'] == (None, 'hello')
 
 
 def test_update_and_revision():
@@ -34,6 +36,8 @@ def test_update_and_revision():
     assert doc._state_name() == 'UPDATED'
     hist = flow.storage.history(sample.name, doc.id)
     assert [h.action for h in hist] == ['CREATE', 'UPDATE']
+    assert hist[1].params == {'text': 'changed'}
+    assert hist[1].changes['text'] == ('hello', 'changed')
 
 
 def test_link_action_and_state():
@@ -47,6 +51,8 @@ def test_link_action_and_state():
     assert a._state_name() == 'LINKED'
     hist = flow.storage.history(doc_a.name, a.id)
     assert [h.action for h in hist] == ['CREATE', 'LINK']
+    assert hist[1].params == {'doc_type': 'DocB', 'doc_id': b.id}
+    assert 'links' in hist[1].changes
 
 
 def test_rights_enforced_delete():
@@ -61,6 +67,7 @@ def test_rights_enforced_delete():
     assert a.deleted is True
     hist = flow.storage.history(doc_a.name, a.id)
     assert hist[-1].action == 'DELETE'
+    assert hist[-1].params == {'delete': True}
 
 
 def test_action_chain_success():
@@ -76,6 +83,8 @@ def test_action_chain_success():
     assert stored_b._state_name() == 'MARKED'
     hist = flow.storage.history(doc_b.name, b.id)
     assert hist[-1].action == 'MARK'
+    assert hist[-1].params == {}
+    assert hist[-1].changes['_state'][1] == 'MARKED'
 
 
 def test_action_chain_rollback_on_repeat():
@@ -124,3 +133,6 @@ def test_recover_document():
     assert a.deleted is True
     flow.recover(a, admin)
     assert a.deleted is False
+    hist = flow.storage.history(doc_a.name, a.id)
+    assert hist[-1].action == 'RECOVER'
+    assert hist[-1].params == {'delete': False}

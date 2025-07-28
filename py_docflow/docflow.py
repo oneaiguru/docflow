@@ -1,6 +1,7 @@
 """High level document flow API inspired by AZ_DSCommon."""
 
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, Callable
+from copy import deepcopy
 from .document import DocumentPersistent, DocumentVersioned, DocumentFile
 from .doctypes import DocType
 from .storage import InMemoryStorage, Transaction
@@ -17,6 +18,23 @@ class Docflow:
 
     def __init__(self, storage: Optional[InMemoryStorage] = None):
         self.storage = storage or InMemoryStorage()
+        self.actions: Dict[str, Callable[[DocumentPersistent, Dict[str, Any], User], None]] = {}
+
+    def register_action(
+        self, name: str, func: Callable[[DocumentPersistent, Dict[str, Any], User], None]
+    ):
+        """Register a custom action callable."""
+        self.actions[name] = func
+
+    def _snapshot(self, doc: DocumentPersistent) -> Dict[str, Any]:
+        return {k: deepcopy(v) for k, v in doc.__dict__.items() if k != "_doc_type"}
+
+    def _diff(self, before: Dict[str, Any], after: Dict[str, Any]) -> Dict[str, Tuple[Any, Any]]:
+        changes = {}
+        for key in before.keys() | after.keys():
+            if before.get(key) != after.get(key):
+                changes[key] = (before.get(key), after.get(key))
+        return changes
 
     def _check_rights(self, doc_type: DocType, action: str, user: User):
         rights = doc_type.rights.get(action.lower())
@@ -30,13 +48,15 @@ class Docflow:
         self._check_rights(doc_type, "create", user)
         doc = DocumentVersioned()  # keep revision history similar to Java code
         doc._doc_type = doc_type
-        for field, value in data.items():
-            setattr(doc, field, value)
         if doc_type.states:
             doc._state = doc_type.states[0]
+        before = self._snapshot(doc)
+        for field, value in data.items():
+            setattr(doc, field, value)
         self.storage.insert(doc_type.name, doc)
         if isinstance(doc, DocumentVersioned):
-            self.storage.add_history(doc_type.name, doc, action="CREATE")
+            changes = self._diff(before, self._snapshot(doc))
+            self.storage.add_history(doc_type.name, doc, action="CREATE", params=data, changes=changes)
         return doc
 
     def persist_file(
@@ -64,6 +84,7 @@ class Docflow:
     def update(self, doc: DocumentPersistent, data: Dict[str, Any], user: User) -> DocumentPersistent:
         """Apply field updates to an existing document."""
         self._check_rights(doc._docType(), "update", user)
+        before = self._snapshot(doc)
         for field, value in data.items():
             setattr(doc, field, value)
         if isinstance(doc, DocumentVersioned):
@@ -72,17 +93,26 @@ class Docflow:
                 doc._state = "UPDATED"
         self.storage.update(doc._docType().name, doc)
         if isinstance(doc, DocumentVersioned):
-            self.storage.add_history(doc._docType().name, doc, action="UPDATE")
+            changes = self._diff(before, self._snapshot(doc))
+            self.storage.add_history(doc._docType().name, doc, action="UPDATE", params=data, changes=changes)
         return doc
 
     def delete(self, doc: DocumentVersioned, user: User, delete: bool = True) -> DocumentVersioned:
         """Mark a versioned document as deleted or recovered."""
         self._check_rights(doc._docType(), "delete", user)
+        before = self._snapshot(doc)
         doc.deleted = delete
         if delete:
             doc.touch()
         self.storage.update(doc._docType().name, doc)
-        self.storage.add_history(doc._docType().name, doc, action="DELETE" if delete else "RECOVER")
+        changes = self._diff(before, self._snapshot(doc))
+        self.storage.add_history(
+            doc._docType().name,
+            doc,
+            action="DELETE" if delete else "RECOVER",
+            params={"delete": delete},
+            changes=changes,
+        )
         return doc
 
     def recover(self, doc: DocumentVersioned, user: User) -> DocumentVersioned:
@@ -119,22 +149,32 @@ class Docflow:
 
         self._check_rights(doc._docType(), action_name, user)
 
+        before = self._snapshot(doc)
         if action_name == "LINK" and isinstance(doc, DocumentVersioned):
             target_type = params.get("doc_type")
             target_id = params.get("doc_id")
             if target_type and target_id is not None:
                 doc.links[target_type] = target_id
-                doc.touch()
                 if "LINKED" in doc._docType().states:
                     doc._state = "LINKED"
-                self.storage.update(doc._docType().name, doc)
-                self.storage.add_history(doc._docType().name, doc, action="LINK")
         elif action_name == "MARK" and isinstance(doc, DocumentVersioned):
-            doc.touch()
             if "MARKED" in doc._docType().states:
                 doc._state = "MARKED"
-            self.storage.update(doc._docType().name, doc)
-            self.storage.add_history(doc._docType().name, doc, action="MARK")
+        elif action_name in self.actions:
+            self.actions[action_name](doc, params, user)
+
+        if isinstance(doc, DocumentVersioned):
+            doc.touch()
+        self.storage.update(doc._docType().name, doc)
+        if isinstance(doc, DocumentVersioned):
+            changes = self._diff(before, self._snapshot(doc))
+            self.storage.add_history(
+                doc._docType().name,
+                doc,
+                action=action_name,
+                params=params,
+                changes=changes,
+            )
 
         if "call" in params:
             info = params["call"]

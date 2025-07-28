@@ -1,6 +1,5 @@
-from dataclasses import asdict
 from datetime import datetime
-from typing import Dict, List, Type, Any
+from typing import Dict, List, Type, Any, Optional, Tuple
 from copy import deepcopy
 from .document import DocumentPersistent, DocumentVersioned, DocumentHistoryEntry
 
@@ -29,12 +28,21 @@ class InMemoryStorage:
         docs = self._data.setdefault(doc_type, {})
         docs[doc.id] = doc
 
-    def add_history(self, doc_type: str, doc: DocumentVersioned, action: str):
+    def add_history(
+        self,
+        doc_type: str,
+        doc: DocumentVersioned,
+        action: str,
+        params: Optional[Dict[str, Any]] = None,
+        changes: Optional[Dict[str, Tuple[Any, Any]]] = None,
+    ):
         entry = DocumentHistoryEntry(
             rev=doc.rev,
             timestamp=datetime.utcnow(),
-            data={k: v for k, v in asdict(doc).items() if k != "_doc_type"},
+            data={k: v for k, v in doc.__dict__.items() if k != "_doc_type"},
             action=action,
+            params=params or {},
+            changes=changes or {},
         )
         self._history.setdefault(doc_type, {}).setdefault(doc.id, []).append(entry)
 
