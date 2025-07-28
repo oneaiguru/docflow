@@ -1,0 +1,12 @@
+{
+  "name": "DocFile",
+  "fields": [
+    {"id": "filename", "type": "string"},
+    {"id": "text", "type": "string"}
+  ],
+  "rights": {
+    "create": {"admin": true},
+    "read": {"admin": true}
+  },
+  "states": ["NEW"]
+}

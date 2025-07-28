@@ -1,0 +1,16 @@
+{
+  "name": "Sample",
+  "fields": [
+    {"id": "text", "type": "string"},
+    {"id": "filename", "type": "string"}
+  ],
+  "states": ["NEW", "UPDATED"],
+  "actions": [
+    {"name": "CREATE", "service": false},
+    {"name": "UPDATE", "service": false}
+  ],
+  "rights": {
+    "create": {"admin": true},
+    "update": {"admin": true}
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "DocB",
+  "fields": [
+    {"id": "text", "type": "string"}
+  ],
+  "actions": [
+    {"name": "MARK", "service": false}
+  ],
+  "states": ["NEW", "MARKED"],
+  "rights": {
+    "mark": {"admin": true}
+  }
+}

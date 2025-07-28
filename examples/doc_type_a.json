@@ -1,0 +1,15 @@
+{
+  "name": "DocA",
+  "fields": [
+    {"id": "text", "type": "string"}
+  ],
+  "actions": [
+    {"name": "LINK", "service": false},
+    {"name": "TRIGGER_MARK", "service": false}
+  ],
+  "links": {"DocB": "doc_b"},
+  "states": ["NEW", "LINKED"],
+  "rights": {
+    "delete": {"admin": true}
+  }
+}
