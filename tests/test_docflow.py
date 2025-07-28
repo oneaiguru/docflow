@@ -7,11 +7,12 @@ def load_types():
     doc_a = registry.load('examples/doc_type_a.json')
     doc_b = registry.load('examples/doc_type_b.json')
     sample = registry.load('examples/sample_doctype.json')
-    return registry, doc_a, doc_b, sample
+    doc_file = registry.load('examples/doc_file.json')
+    return registry, doc_a, doc_b, sample, doc_file
 
 
 def test_create_and_history():
-    registry, doc_a, _, _ = load_types()
+    registry, doc_a, _, _, _ = load_types()
     flow = Docflow()
     admin = User('alice', ['admin'])
     doc = flow.create(doc_a, {'text': 'hello'}, admin)
@@ -24,7 +25,7 @@ def test_create_and_history():
 
 
 def test_update_and_revision():
-    registry, _, _, sample = load_types()
+    registry, _, _, sample, _ = load_types()
     flow = Docflow()
     admin = User('alice', ['admin'])
     doc = flow.create(sample, {'text': 'hello', 'filename': 'a.txt'}, admin)
@@ -36,7 +37,7 @@ def test_update_and_revision():
 
 
 def test_link_action_and_state():
-    registry, doc_a, doc_b, _ = load_types()
+    registry, doc_a, doc_b, _, _ = load_types()
     flow = Docflow()
     admin = User('alice', ['admin'])
     a = flow.create(doc_a, {'text': 'a'}, admin)
@@ -49,7 +50,7 @@ def test_link_action_and_state():
 
 
 def test_rights_enforced_delete():
-    registry, doc_a, _, _ = load_types()
+    registry, doc_a, _, _, _ = load_types()
     flow = Docflow()
     admin = User('alice', ['admin'])
     guest = User('bob', ['guest'])
@@ -63,7 +64,7 @@ def test_rights_enforced_delete():
 
 
 def test_action_chain_success():
-    registry, doc_a, doc_b, _ = load_types()
+    registry, doc_a, doc_b, _, _ = load_types()
     flow = Docflow()
     admin = User('alice', ['admin'])
     a = flow.create(doc_a, {'text': 'a'}, admin)
@@ -78,7 +79,7 @@ def test_action_chain_success():
 
 
 def test_action_chain_rollback_on_repeat():
-    registry, doc_a, doc_b, _ = load_types()
+    registry, doc_a, doc_b, _, _ = load_types()
     flow = Docflow()
     admin = User('alice', ['admin'])
     a = flow.create(doc_a, {'text': 'a'}, admin)
@@ -103,3 +104,23 @@ def test_action_chain_rollback_on_repeat():
     assert stored_a._state_name() == 'NEW'
     assert stored_b._state_name() == 'NEW'
     assert len(flow.storage.history(doc_b.name, b.id)) == 1
+
+
+def test_persist_and_fetch_file():
+    registry, _, _, _, doc_file = load_types()
+    flow = Docflow()
+    admin = User('alice', ['admin'])
+    f = flow.persist_file(doc_file, 'note.txt', b'hey', admin, text='desc')
+    assert f.id == 1
+    assert flow.get_file(f, admin) == b'hey'
+
+
+def test_recover_document():
+    registry, doc_a, _, _, _ = load_types()
+    flow = Docflow()
+    admin = User('alice', ['admin'])
+    a = flow.create(doc_a, {'text': 'hi'}, admin)
+    flow.delete(a, admin)
+    assert a.deleted is True
+    flow.recover(a, admin)
+    assert a.deleted is False

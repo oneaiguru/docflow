@@ -71,3 +71,12 @@ class DocumentHistoryEntry:
     timestamp: datetime
     data: Dict[str, Any]
     action: str
+
+
+@dataclass
+class DocumentFile(DocumentSimple):
+    """Simple file document storing raw bytes."""
+
+    filename: str = ""
+    data: bytes = b""
+    text: str = ""

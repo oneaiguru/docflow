@@ -25,3 +25,8 @@ how role based rights prevent a guest from deleting records.
 Recent updates added a primitive transaction system and action chains. Actions
 may call other actions on linked documents via a ``call`` parameter. Each chain
 is executed atomically, rolling back all changes if any step fails.
+
+The Python version now includes a minimal file document model. Files can be
+persisted and retrieved entirely in memory using ``Docflow.persist_file`` and
+``Docflow.get_file``. Versioned documents may also be recovered after deletion
+with ``Docflow.recover``.

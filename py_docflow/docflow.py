@@ -1,7 +1,7 @@
 """High level document flow API inspired by AZ_DSCommon."""
 
 from typing import Any, Dict, Optional, Set, Tuple
-from .document import DocumentPersistent, DocumentVersioned
+from .document import DocumentPersistent, DocumentVersioned, DocumentFile
 from .doctypes import DocType
 from .storage import InMemoryStorage, Transaction
 from .user import User
@@ -39,6 +39,28 @@ class Docflow:
             self.storage.add_history(doc_type.name, doc, action="CREATE")
         return doc
 
+    def persist_file(
+        self,
+        doc_type: DocType,
+        filename: str,
+        data: bytes,
+        user: User,
+        text: str = "",
+    ) -> DocumentFile:
+        """Save a file document with raw bytes."""
+        self._check_rights(doc_type, "create", user)
+        doc = DocumentFile(filename=filename, data=data, text=text)
+        doc._doc_type = doc_type
+        if doc_type.states:
+            doc._state = doc_type.states[0]
+        self.storage.insert(doc_type.name, doc)
+        return doc
+
+    def get_file(self, doc: DocumentFile, user: User) -> bytes:
+        """Retrieve file contents from storage."""
+        self._check_rights(doc._docType(), "read", user)
+        return doc.data
+
     def update(self, doc: DocumentPersistent, data: Dict[str, Any], user: User) -> DocumentPersistent:
         """Apply field updates to an existing document."""
         self._check_rights(doc._docType(), "update", user)
@@ -62,6 +84,10 @@ class Docflow:
         self.storage.update(doc._docType().name, doc)
         self.storage.add_history(doc._docType().name, doc, action="DELETE" if delete else "RECOVER")
         return doc
+
+    def recover(self, doc: DocumentVersioned, user: User) -> DocumentVersioned:
+        """Recover a previously deleted document."""
+        return self.delete(doc, user, delete=False)
 
     def action(
         self,

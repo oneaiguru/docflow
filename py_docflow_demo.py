@@ -1,11 +1,12 @@
 """Small demo script showing how to use the Python Docflow."""
-from py_docflow import DocTypesRegistry, Docflow, DocumentVersioned, User
+from py_docflow import DocTypesRegistry, Docflow, User
 
 
 def main():
     registry = DocTypesRegistry()
     doc_type_a = registry.load('examples/doc_type_a.json')
     doc_type_b = registry.load('examples/doc_type_b.json')
+    file_type = registry.load('examples/doc_file.json')
 
     flow = Docflow()
     admin = User("alice", ["admin"])
@@ -28,11 +29,18 @@ def main():
     history_b = flow.storage.history(b._docType().name, b.id)
     print("B history", [(h.action, h.rev) for h in history_b])
 
+    file_doc = flow.persist_file(file_type, "note.txt", b"hello", admin)
+    print("Saved file", file_doc._fullId())
+    print("File content", flow.get_file(file_doc, admin))
+
     guest = User("bob", ["guest"])
     try:
         flow.delete(a, guest)
     except PermissionError as e:
         print("Guest delete denied:", e)
+    flow.delete(a, admin)
+    flow.recover(a, admin)
+    print("Recovered", a._fullId(), "deleted?", a.deleted)
 
 
 if __name__ == "__main__":
