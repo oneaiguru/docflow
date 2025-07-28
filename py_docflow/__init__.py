@@ -5,7 +5,6 @@ from .doctypes import DocType, Action, DocTypesRegistry
 from .docflow import Docflow
 from .user import User
 from .storage import InMemoryStorage, Transaction
-
 __all__ = [
     "Document",
     "DocumentPersistent",
