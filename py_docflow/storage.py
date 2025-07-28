@@ -1,6 +1,7 @@
 from dataclasses import asdict
 from datetime import datetime
 from typing import Dict, List, Type, Any
+from copy import deepcopy
 from .document import DocumentPersistent, DocumentVersioned, DocumentHistoryEntry
 
 
@@ -42,3 +43,23 @@ class InMemoryStorage:
 
     def all(self, doc_type: str):
         return list(self._data.get(doc_type, {}).values())
+
+
+class Transaction:
+    """Context manager providing basic rollback for InMemoryStorage."""
+
+    def __init__(self, storage: InMemoryStorage):
+        self.storage = storage
+
+    def __enter__(self):
+        self._snapshot_data = deepcopy(self.storage._data)
+        self._snapshot_history = deepcopy(self.storage._history)
+        self._snapshot_counter = self.storage._counter.copy()
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type:
+            self.storage._data = self._snapshot_data
+            self.storage._history = self._snapshot_history
+            self.storage._counter = self._snapshot_counter
+        return False

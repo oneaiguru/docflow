@@ -19,6 +19,9 @@ def main():
     flow.update(b, {"text": "changed"}, admin)
     print("B rev", b.rev)
 
+    flow.action(a, "TRIGGER_MARK", admin, {"call": {"doc_type": "DocB", "doc_id": b.id, "action": "MARK"}})
+    print("B state after mark", flow.storage.get("DocB", b.id)._state_name())
+
     history_a = flow.storage.history(a._docType().name, a.id)
     print("A history", [(h.action, h.rev) for h in history_a])
 

@@ -21,3 +21,7 @@ python -m py_docflow_demo
 ```
 The script creates two documents as an admin user, links them together and shows
 how role based rights prevent a guest from deleting records.
+
+Recent updates added a primitive transaction system and action chains. Actions
+may call other actions on linked documents via a ``call`` parameter. Each chain
+is executed atomically, rolling back all changes if any step fails.
