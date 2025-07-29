@@ -8,7 +8,7 @@ def main():
     doc_type_b = registry.load('examples/doc_type_b.json')
     file_type = registry.load('examples/doc_file.json')
 
-    flow = Docflow()
+    flow = Docflow(roles=registry.roles)
     admin = User("alice", ["admin"])
     a = flow.create(doc_type_a, {"text": "hello"}, admin)
     b = flow.create(doc_type_b, {"text": "world"}, admin)

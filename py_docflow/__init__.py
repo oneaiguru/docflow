@@ -10,6 +10,7 @@ from .document import (
 )
 from .doctypes import DocType, Action, DocTypesRegistry
 from .docflow import Docflow
+from .rights import RolesRegistry, BitSet
 from .user import User
 from .storage import InMemoryStorage, Transaction
 
@@ -24,6 +25,8 @@ __all__ = [
     "Action",
     "DocTypesRegistry",
     "Docflow",
+    "RolesRegistry",
+    "BitSet",
     "InMemoryStorage",
     "Transaction",
     "User",

@@ -30,3 +30,9 @@ The Python version now includes a minimal file document model. Files can be
 persisted and retrieved entirely in memory using ``Docflow.persist_file`` and
 ``Docflow.get_file``. Versioned documents may also be recovered after deletion
 with ``Docflow.recover``.
+
+The latest update introduces a ``BitSet``-based rights model. ``RolesRegistry``
+assigns bit indexes to roles while each document type stores action permissions
+as bit masks for efficient checks. If a ``Docflow`` instance uses a different
+roles registry than the one used during type loading, rights fall back to the
+original dictionary-based checks to remain compatible.
