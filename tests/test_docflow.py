@@ -13,7 +13,7 @@ def load_types():
 
 def test_create_and_history():
     registry, doc_a, _, _, _ = load_types()
-    flow = Docflow()
+    flow = Docflow(roles=registry.roles)
     admin = User('alice', ['admin'])
     doc = flow.create(doc_a, {'text': 'hello'}, admin)
     assert doc.id == 1
@@ -28,7 +28,7 @@ def test_create_and_history():
 
 def test_update_and_revision():
     registry, _, _, sample, _ = load_types()
-    flow = Docflow()
+    flow = Docflow(roles=registry.roles)
     admin = User('alice', ['admin'])
     doc = flow.create(sample, {'text': 'hello', 'filename': 'a.txt'}, admin)
     flow.update(doc, {'text': 'changed'}, admin)
@@ -42,7 +42,7 @@ def test_update_and_revision():
 
 def test_link_action_and_state():
     registry, doc_a, doc_b, _, _ = load_types()
-    flow = Docflow()
+    flow = Docflow(roles=registry.roles)
     admin = User('alice', ['admin'])
     a = flow.create(doc_a, {'text': 'a'}, admin)
     b = flow.create(doc_b, {'text': 'b'}, admin)
@@ -57,7 +57,7 @@ def test_link_action_and_state():
 
 def test_rights_enforced_delete():
     registry, doc_a, _, _, _ = load_types()
-    flow = Docflow()
+    flow = Docflow(roles=registry.roles)
     admin = User('alice', ['admin'])
     guest = User('bob', ['guest'])
     a = flow.create(doc_a, {'text': 'hello'}, admin)
@@ -72,7 +72,7 @@ def test_rights_enforced_delete():
 
 def test_action_chain_success():
     registry, doc_a, doc_b, _, _ = load_types()
-    flow = Docflow()
+    flow = Docflow(roles=registry.roles)
     admin = User('alice', ['admin'])
     a = flow.create(doc_a, {'text': 'a'}, admin)
     b = flow.create(doc_b, {'text': 'b'}, admin)
@@ -89,7 +89,7 @@ def test_action_chain_success():
 
 def test_action_chain_rollback_on_repeat():
     registry, doc_a, doc_b, _, _ = load_types()
-    flow = Docflow()
+    flow = Docflow(roles=registry.roles)
     admin = User('alice', ['admin'])
     a = flow.create(doc_a, {'text': 'a'}, admin)
     b = flow.create(doc_b, {'text': 'b'}, admin)
@@ -117,7 +117,7 @@ def test_action_chain_rollback_on_repeat():
 
 def test_persist_and_fetch_file():
     registry, _, _, _, doc_file = load_types()
-    flow = Docflow()
+    flow = Docflow(roles=registry.roles)
     admin = User('alice', ['admin'])
     f = flow.persist_file(doc_file, 'note.txt', b'hey', admin, text='desc')
     assert f.id == 1
@@ -126,7 +126,7 @@ def test_persist_and_fetch_file():
 
 def test_recover_document():
     registry, doc_a, _, _, _ = load_types()
-    flow = Docflow()
+    flow = Docflow(roles=registry.roles)
     admin = User('alice', ['admin'])
     a = flow.create(doc_a, {'text': 'hi'}, admin)
     flow.delete(a, admin)
@@ -136,3 +136,15 @@ def test_recover_document():
     hist = flow.storage.history(doc_a.name, a.id)
     assert hist[-1].action == 'RECOVER'
     assert hist[-1].params == {'delete': False}
+
+
+def test_fallback_rights_dict():
+    """Rights enforcement should work without roles registry."""
+    registry = DocTypesRegistry()
+    doc_a = registry.load('examples/doc_type_a.json')
+    flow = Docflow()
+    admin = User('alice', ['admin'])
+    guest = User('bob', ['guest'])
+    doc = flow.create(doc_a, {'text': 'hi'}, admin)
+    with pytest.raises(PermissionError):
+        flow.delete(doc, guest)

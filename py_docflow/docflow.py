@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Set, Tuple, Callable
 from copy import deepcopy
 from .document import DocumentPersistent, DocumentVersioned, DocumentFile
 from .doctypes import DocType
+from .rights import RolesRegistry
 from .storage import InMemoryStorage, Transaction
 from .user import User
 
@@ -16,9 +17,10 @@ class Docflow:
     operation returns the updated document instance.
     """
 
-    def __init__(self, storage: Optional[InMemoryStorage] = None):
+    def __init__(self, storage: Optional[InMemoryStorage] = None, roles: Optional[RolesRegistry] = None):
         self.storage = storage or InMemoryStorage()
         self.actions: Dict[str, Callable[[DocumentPersistent, Dict[str, Any], User], None]] = {}
+        self.roles = roles or RolesRegistry()
 
     def register_action(
         self, name: str, func: Callable[[DocumentPersistent, Dict[str, Any], User], None]
@@ -37,11 +39,21 @@ class Docflow:
         return changes
 
     def _check_rights(self, doc_type: DocType, action: str, user: User):
-        rights = doc_type.rights.get(action.lower())
-        if not rights:
+        """Validate that ``user`` may perform ``action`` on ``doc_type``."""
+        mask = doc_type.rights_bits.get(action.lower())
+        if mask is not None and doc_type.rights_roles is self.roles:
+            user_mask = self.roles.mask(user.roles)
+            if mask.and_(user_mask).is_empty():
+                raise PermissionError(
+                    f"User {user.name} lacks rights for {action} on {doc_type.name}"
+                )
             return
-        if not any(rights.get(role) for role in user.roles):
-            raise PermissionError(f"User {user.name} lacks rights for {action} on {doc_type.name}")
+
+        rights = doc_type.rights.get(action.lower())
+        if rights and not any(rights.get(role) for role in user.roles):
+            raise PermissionError(
+                f"User {user.name} lacks rights for {action} on {doc_type.name}"
+            )
 
     def create(self, doc_type: DocType, data: Dict[str, Any], user: User) -> DocumentPersistent:
         """Create a new document instance and store it."""
